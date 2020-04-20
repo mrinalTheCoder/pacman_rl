@@ -1,3 +1,4 @@
 tmp*.h5
+double*.h5
 test_model.py
 .DS_Store
