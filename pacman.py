@@ -11,7 +11,6 @@ MAX_MEMORY_LEN = 100000
 def preprocess(img):
     img = np.mean(img, axis=2).astype(np.uint8)
     img = img[1:176:2, ::2]
-    img = img[:, :, np.newaxis]
     return img
 
 def huber_loss(y_true, y_pred):
@@ -96,23 +95,29 @@ class Agent:
 env = gym.make("MsPacmanDeterministic-v4")
 action_space = env.action_space.n
 # observation_space = env.observation_space.shape
-observation_space = (88, 80, 1)
+observation_space = (88, 80, 4)
 agent = Agent(observation_space, action_space)
 run = 0
 for i in range(2000):
     step = 0
     state = env.reset()
     state = preprocess(state)
+    state_stack = np.stack((state, state, state, state), axis=2)
+    reward_per_ep = 0
     while True:
         step += 1
+        state_stack_ = state_stack
         env.render()
-        action = agent.act(state)
+        action = agent.act(state_stack)
         state_, reward, terminal, info = env.step(action)
+        reward_per_ep += reward
         state_ = preprocess(state_)
-        agent.observe([state, action, reward, state_, terminal])
-        state = state_
+        for i in range(1, 4):
+            state_stack_[i] = state_stack_[i-1]
+        state_stack_[:, :, 0] = state_
+        agent.observe([state_stack, action, reward, state_stack_, terminal])
         if terminal:
-            print("Run: " + str(run+1) + ", exploration: " + str(agent.epsilon))
+            print("Run: " + str(run+1) + ", exploration: " + str(agent.epsilon) + ", score: " + str(reward_per_ep))
             break
         agent.replay(32)
     run += 1
